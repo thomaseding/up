@@ -29,7 +29,7 @@ main = do
 
 
 fixupPath :: FilePath -> IO FilePath
-fixupPath = canonicalizePath
+fixupPath = return
 
 
 splitDirectories :: FilePath -> [String]
