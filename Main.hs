@@ -1,11 +1,11 @@
 module Main (main) where
 
 
-import qualified Up (main)
+import qualified Up.Program (main)
 
 
 main :: IO ()
-main = Up.main
+main = Up.Program.main
 
 
 

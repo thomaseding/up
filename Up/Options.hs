@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module UpOptions (
+module Up.Options (
       UpOption(..)
     , PathType(..)
     , Separator(..)

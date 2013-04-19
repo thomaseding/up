@@ -1,4 +1,4 @@
-module Up (main) where
+module Up.Program (main) where
 
 import Data.Char (toLower)
 import Data.Function (on)
@@ -7,24 +7,31 @@ import Data.List.Split (splitOneOf)
 import System.Directory (canonicalizePath, getCurrentDirectory)
 import System.Environment (getArgs)
 import System.FilePath (joinDrive, splitDrive, (</>), pathSeparator)
-import UpOptions
+import Up.Options
 import qualified System.Exit
 
 
-data ExitCode = Success | BadArgs
+data ExitCode
+    = Program_Success
+    | Program_BadArgs
+    | UpTo_BadDestination
 
 
 exitWith :: ExitCode -> IO a
-exitWith code = System.Exit.exitWith $ case code of
-    Success -> System.Exit.ExitSuccess
-    BadArgs -> System.Exit.ExitFailure 1
+exitWith code = System.Exit.exitWith $ fromNumericCode $ case code of
+    Program_Success -> 0
+    Program_BadArgs -> 1
+    UpTo_BadDestination -> 2
+    where
+        fromNumericCode 0 = System.Exit.ExitSuccess
+        fromNumericCode n = System.Exit.ExitFailure n
 
 
 main :: IO ()
 main = do
     args <- getArgs
     case parseUpOptions args of
-        Nothing -> runHelp >> exitWith BadArgs
+        Nothing -> runHelp >> exitWith Program_BadArgs
         Just (opt, mSep) -> runOpt mSep opt >>= exitWith
 
 
@@ -67,13 +74,14 @@ runHelp = mapM putStrLn [
     , ""
     , "-t, --to PATHPART: Goes up the current directory until you hit PATHPART. Emits as a relative path by default."
     , ""
+
     , "In the above options, AMOUNT can be of two forms. (1) a non-negative integer. (2) a series of consecutive '.' (dot) characters. Case (2) is the same as (1) if AMOUNT were the number of dots minus one."
 
     , "The following flags do not need to be explicitly written and can be implied: --by, --to. If AMOUNT is supplied, --by is chosen. In all other cases, --to is chosen."
 
     , "If multiple options are supplied and any of them conflict, the rightmost option takes precedence unless any of the conflicting options is defined by an implicit flag. In that case, it is a usage error."
 
-    ] >> return Success
+    ] >> return Program_Success
 
 
 runUpBy :: Separator -> Maybe FilePath -> PathType -> Int -> IO ExitCode
@@ -85,7 +93,7 @@ runUpBy sep mDir pt n = do
     putStr . useSeparator sep =<< case pt of
         RelativePath -> return relPath
         AbsolutePath -> fixupPath $ dir </> relPath
-    return Success
+    return Program_Success
 
 
 runUpTo :: Separator -> Maybe FilePath -> PathType -> Bool -> String -> IO ExitCode
@@ -93,11 +101,14 @@ runUpTo sep mDir pt ic part = do
     dir <- case mDir of
         Just dir -> return dir
         Nothing -> fixupPath =<< getCurrentDirectory
-    let relPath = upTo ic dir part
-    putStr . useSeparator sep =<< case pt of
-        RelativePath -> return relPath
-        AbsolutePath -> fixupPath $ dir </> relPath
-    return Success
+    case upTo ic dir part of
+        Nothing ->
+            return UpTo_BadDestination
+        Just relPath -> do
+            putStr . useSeparator sep =<< case pt of
+                RelativePath -> return relPath
+                AbsolutePath -> fixupPath $ dir </> relPath
+            return Program_Success
 
 
 runOpt :: Maybe Separator -> UpOption -> IO ExitCode
@@ -123,12 +134,14 @@ upBy :: Int -> FilePath
 upBy = mkPath "." . flip replicate ".."
 
 
-upTo :: Bool -> FilePath -> String -> FilePath
+upTo :: Bool -> FilePath -> String -> Maybe FilePath
 upTo ic path = upTo' ic $ splitDirectories path
 
 
-upTo' :: Bool -> [String] -> String -> FilePath
-upTo' ic targets target = upBy $ length targets - length targets'
+upTo' :: Bool -> [String] -> String -> Maybe FilePath
+upTo' ic targets target = case targets' of
+    [] -> Nothing
+    _ -> Just $ upBy $ length targets - length targets'
     where
         targets' = reverse . dropWhile pred . reverse $ targets
         pred = if ic
