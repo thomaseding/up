@@ -8,6 +8,7 @@ import System.Directory (canonicalizePath, getCurrentDirectory)
 import System.Environment (getArgs)
 import System.FilePath (joinDrive, splitDrive, (</>), pathSeparator)
 import Up.Options
+import Up.ParseCmdLine
 import qualified System.Exit
 
 
