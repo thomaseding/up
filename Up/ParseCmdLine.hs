@@ -1,8 +1,8 @@
-{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Up.ParseCmdLine (
       parseUpOptions
+    , ParseResult(upOption, separator)
     ) where
 
 
@@ -14,11 +14,17 @@ import Text.Parsec
 import Text.Parsec.String
 
 
+data ParseResult = ParseResult {
+      upOption :: UpOption
+    , separator :: Maybe Separator
+    }
+
+
 updatePathType :: PathType -> UpOption -> UpOption
 updatePathType pathType opt = case opt of
     Help -> Help
-    UpBy mDir _ n -> UpBy mDir pathType n
-    UpTo mDir _ ic s -> UpTo mDir pathType ic s
+    upBy @ UpBy{} -> upBy { pathType = pathType }
+    upTo @ UpTo{} -> upTo { pathType = pathType }
 
 
 data ParseState = ParseState {
@@ -181,7 +187,7 @@ parseOptions :: GenParser String ParseState ParseState
 parseOptions = many1 parseOption >> eof >> getState
 
 
-parseUpOptions :: [String] -> Maybe (UpOption, Maybe Separator)
+parseUpOptions :: [String] -> Maybe ParseResult
 parseUpOptions args = case runParser parseOptions initState "" $ filter (not . null) args of
     Left err -> Nothing
     Right st -> constructOpt st
@@ -195,10 +201,16 @@ parseUpOptions args = case runParser parseOptions initState "" $ filter (not . n
             }
         constructOpt st = case pickBest (hasImplicitOption st) $ upOptions st of
             Nothing -> Nothing
-            Just Help -> Just (Help, Nothing)
+            Just Help -> Just ParseResult { upOption = Help, separator = Nothing }
             Just upOpt -> Just $ case mPathType st of
-                Nothing -> (updateIgnoreCase upOpt, mSeparator st)
-                Just pathType -> (updateIgnoreCase $ updatePathType pathType upOpt, mSeparator st)
+                Nothing -> ParseResult {
+                      upOption = updateIgnoreCase upOpt
+                    , separator = mSeparator st
+                    }
+                Just pathType -> ParseResult {
+                      upOption = updateIgnoreCase $ updatePathType pathType upOpt
+                    , separator = mSeparator st
+                    }
             where
                 updateIgnoreCase opt = if stateIgnoreCase st 
                     then case opt of

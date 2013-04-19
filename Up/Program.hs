@@ -33,7 +33,7 @@ main = do
     args <- getArgs
     case parseUpOptions args of
         Nothing -> runHelp >> exitWith Program_BadArgs
-        Just (opt, mSep) -> runOpt mSep opt >>= exitWith
+        Just res -> runOpt (separator res) (upOption res) >>= exitWith
 
 
 fixupPath :: FilePath -> IO FilePath
