@@ -16,13 +16,11 @@ data ExitCode
     = Program_Success
     | Program_BadArgs
     | UpTo_BadDestination
+    deriving (Enum, Eq)
 
 
 exitWith :: ExitCode -> IO a
-exitWith code = System.Exit.exitWith $ fromNumericCode $ case code of
-    Program_Success -> 0
-    Program_BadArgs -> 1
-    UpTo_BadDestination -> 2
+exitWith = System.Exit.exitWith . fromNumericCode . fromEnum
     where
         fromNumericCode 0 = System.Exit.ExitSuccess
         fromNumericCode n = System.Exit.ExitFailure n
