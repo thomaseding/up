@@ -1,4 +1,6 @@
-module Up.Program (main) where
+module Up.Program (
+    main
+) where
 
 import Data.Char (toLower)
 import Data.Function (on)

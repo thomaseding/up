@@ -2,7 +2,7 @@ module Up.Options (
       UpOption(..)
     , PathType(..)
     , Separator(..)
-    ) where
+) where
 
 
 data Separator = ForwardSlash | BackSlash

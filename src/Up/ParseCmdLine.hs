@@ -3,7 +3,7 @@
 module Up.ParseCmdLine (
       parseUpOptions
     , ParseResult(upOption, separator)
-    ) where
+) where
 
 
 import Up.Options
