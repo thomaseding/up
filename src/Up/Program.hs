@@ -6,8 +6,8 @@ import Data.Char (toLower)
 import Data.Function (on)
 import Data.List (intercalate)
 import Data.List.Split (splitOneOf)
-import System.Directory (canonicalizePath, getCurrentDirectory)
-import System.Environment (getArgs)
+import System.Directory (canonicalizePath)
+import System.Environment (getArgs, getEnv)
 import System.FilePath (joinDrive, splitDrive, (</>), pathSeparator)
 import Up.Options
 import Up.ParseCmdLine
@@ -37,7 +37,7 @@ main = do
 
 
 fixupPath :: FilePath -> IO FilePath
-fixupPath = canonicalizePath
+fixupPath = return -- NOTE: canonicalizePath expands symlinks
 
 
 splitDirectories :: FilePath -> [String]
@@ -85,11 +85,15 @@ runHelp = mapM putStrLn [
     ] >> return Program_Success
 
 
+getWorkingDir :: IO String
+getWorkingDir = getEnv "PWD" -- not using getCurrentDirectory because symlinks would get expanded
+
+
 runUpBy :: Separator -> Maybe FilePath -> PathType -> Int -> IO ExitCode
 runUpBy sep mDir pt n = do
     dir <- case mDir of
         Just dir -> return dir
-        Nothing -> fixupPath =<< getCurrentDirectory
+        Nothing -> fixupPath =<< getWorkingDir
     let relPath = upBy n
     putStr . useSeparator sep =<< case pt of
         RelativePath -> return relPath
@@ -101,7 +105,7 @@ runUpTo :: Separator -> Maybe FilePath -> PathType -> Bool -> String -> IO ExitC
 runUpTo sep mDir pt ic part = do
     dir <- case mDir of
         Just dir -> return dir
-        Nothing -> fixupPath =<< getCurrentDirectory
+        Nothing -> fixupPath =<< getWorkingDir
     case upTo ic dir part of
         Nothing ->
             return UpTo_BadDestination
