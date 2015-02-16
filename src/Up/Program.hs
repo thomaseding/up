@@ -36,8 +36,9 @@ main = do
         Just res -> runOpt (separator res) (upOption res) >>= exitWith
 
 
+-- NOTE: canonicalizePath expands symlinks
 fixupPath :: FilePath -> IO FilePath
-fixupPath = return -- NOTE: canonicalizePath expands symlinks
+fixupPath = canonicalizePath
 
 
 splitDirectories :: FilePath -> [String]
