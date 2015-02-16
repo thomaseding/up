@@ -17,7 +17,7 @@ $ cabal install
 Install from Hackage.
 ```
 $ cabal update
-$ cabal install Fungi
+$ cabal install up
 ```
 
 These will install the `up` command.
