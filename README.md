@@ -44,7 +44,7 @@ See `up --help` for more info.
 `up` generates file path strings, but it (by itself) does not change your current working directory. So below is code you can add to your shell's config file (e.g. `.bashrc`) to use the `up` program to change your directory.
 
 
-```
+```bash
 g () {
     local DEST
     DEST=$(up "$@")
@@ -66,7 +66,7 @@ $ pwd
 
 
 For shell autocomplete for the above `g` command, you can add this to your shell's config in addition:
-```
+```bash
 _g () {
         if [ "$COMP_CWORD" == "1" ]
         then
