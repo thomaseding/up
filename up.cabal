@@ -10,7 +10,7 @@ name:                up
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             1.0.0.1
+version:             1.0.0.2
 
 -- A short (one-line) description of the package.
 synopsis:            Command line tool to generate pathnames to facilitate moving upward in a file system.
@@ -59,6 +59,7 @@ executable up
   hs-source-dirs:      src
 
   other-modules:
+    Text.PrintOption
     Up.Options
     Up.ParseCmdLine
     Up.Program
