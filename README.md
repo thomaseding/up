@@ -50,13 +50,14 @@ g () {
     DEST=$(up "$@")
     if [ "$?" == '0' ]
     then
-                cd "$DEST"
+        cd "$DEST"
     else
-                return "$?"
+        return "$?"
     fi
 }
 ```
 
+Example usage:
 ```
 $ cd /home/thomas/code/up/src
 $ g thomas
@@ -68,12 +69,12 @@ $ pwd
 For shell autocomplete for the above `g` command, you can add this to your shell's config in addition:
 ```bash
 _g () {
-        if [ "$COMP_CWORD" == "1" ]
-        then
-                local cur=${COMP_WORDS[COMP_CWORD]}
-                local parts="$(pwd | tr '/' ' ')"
-                COMPREPLY=( $(compgen -W "$parts" -- $cur) )
-        fi
+    if [ "$COMP_CWORD" == "1" ]
+    then
+        local cur=${COMP_WORDS[COMP_CWORD]}
+        local parts="$(pwd | tr '/' ' ')"
+        COMPREPLY=( $(compgen -W "$parts" -- $cur) )
+    fi
 }
 complete -F _g g
 ```
