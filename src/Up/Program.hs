@@ -11,14 +11,14 @@ import System.Environment (getArgs, getEnv, getProgName)
 import System.FilePath (joinDrive, splitDrive, (</>), pathSeparator, dropExtension)
 import Text.PrintOption
 import Up.Options
-import Up.ParseCmdLine
 import qualified System.Exit
 
 
 data ExitCode
     = Program_Success
     | Program_BadArgs
-    | UpTo_BadDestination
+    | Program_UpTo_BadDestination
+    | Program_UnknownFailure
     deriving (Enum, Eq)
 
 
@@ -32,9 +32,40 @@ exitWith = System.Exit.exitWith . fromNumericCode . fromEnum
 main :: IO ()
 main = do
     args <- getArgs
-    case parseUpOptions args of
-        Nothing -> runHelp >> exitWith Program_BadArgs
-        Just res -> runOpt (separator res) (upOption res) >>= exitWith
+    case parseOptions defaultSep args of
+        Left msg -> do
+            putStrLn msg
+            exitWith Program_BadArgs
+        Right options -> do
+            exitWith =<< runUp options
+
+
+runUp :: UpOptions -> IO ExitCode
+runUp options = case optionHelp options of
+    Just msg -> do
+        putStrLn msg
+        return Program_Success
+    Nothing -> do
+        let sep = optionSeparator options
+            mDir = optionBasePath options
+            ic = optionIgnoreCase options
+            fixPT pt = case optionPathType options of
+                Nothing -> pt
+                Just pt' -> pt'
+        case optionUpBy options of
+            Just (pt, n) -> runUpBy sep mDir (fixPT pt) n
+            Nothing -> case optionUpTo options of
+                Just (pt, str) -> runUpTo sep mDir (fixPT pt) ic str
+                Nothing -> do
+                    putStrLn "*** Internal logic error! ***"
+                    return Program_UnknownFailure
+
+
+defaultSep :: Separator
+defaultSep = case pathSeparator of
+    '\\' -> BackSlash
+    '/' -> ForwardSlash
+    _ -> ForwardSlash
 
 
 -- NOTE: canonicalizePath expands symlinks
@@ -54,45 +85,15 @@ useSeparator sep = joiner . splitDirectories
             BackSlash -> "\\"
 
 
-runHelp :: IO ExitCode
-runHelp = do
-    let maxWidth = 80
-    let line = putStrLn $ replicate maxWidth '-'
-    let settings = defaultPrintSettings { maxColumn = maxWidth }
-    let p = printOptionWith settings
-    line
-    progName <- fmap dropExtension getProgName
-    putStrLn $ "Usage: " ++ progName ++ " [OPTIONS]"
-    putStrLn $ "Emits a path to go up a certain amount of directories based on OPTIONS."
-    line
-    putStrLn $ "Options:"
-    p ' ' "help" "Display this help and exit."
-    p 'r' "relative" "Emit the path as a relative path."
-    p 'a' "absolute" "Emit the path as an absolute path."
-    p 's' "separator (forward|back)" "The type of file separator to emit as. If this option is not supplied, the emitted separator is implementation defined but will be compliant with the program's operating system."
-    p 'i' "ignore-case" "Ignore case when matching strings."
-    p 'm' "from-by DIRECTORY AMOUNT" "Goes up DIRECTORY by AMOUNT. Emits as an absolute path by default."
-    p 'n' "by AMOUNT" "Goes up the current directory by AMOUNT. Emits as a relative path by default."
-    p 'f' "from-to DIRECTORY PATHPART" "Goes up DIRECTORY until you hit PATHPART. Emits as an absolute path by default."
-    p 't' "to PATHPART" "Goes up the current directory until you hit PATHPART. Emits as a relative path by default."
-    line
-    putStrLn $ fit maxWidth $ "In the above options, AMOUNT can be of two forms. (1) a non-negative integer. (2) a series of consecutive '.' (dot) characters. Case (2) is the same as (1) if AMOUNT were the number of dots minus one."
-    line
-    putStrLn $ fit maxWidth $ "The following flags do not need to be explicitly written and can be implied: --by, --to. If AMOUNT is supplied, --by is chosen. In all other cases, --to is chosen."
-    line
-    putStrLn $ fit maxWidth $ "If multiple options are supplied and any of them conflict, the rightmost option takes precedence unless any of the conflicting options is defined by an implicit flag. In that case, it is a usage error."
-    return Program_Success
-
-
 getWorkingDir :: IO String
 getWorkingDir = getEnv "PWD" -- not using getCurrentDirectory because symlinks would get expanded
 
 
-runUpBy :: Separator -> Maybe FilePath -> PathType -> Int -> IO ExitCode
+runUpBy :: Separator -> BasePath -> PathType -> Int -> IO ExitCode
 runUpBy sep mDir pt n = do
     dir <- case mDir of
-        Just dir -> return dir
-        Nothing -> fixupPath =<< getWorkingDir
+        GivenPath dir -> return dir
+        CurrPath -> fixupPath =<< getWorkingDir
     let relPath = upBy n
     putStr . useSeparator sep =<< case pt of
         RelativePath -> return relPath
@@ -100,32 +101,19 @@ runUpBy sep mDir pt n = do
     return Program_Success
 
 
-runUpTo :: Separator -> Maybe FilePath -> PathType -> Bool -> String -> IO ExitCode
+runUpTo :: Separator -> BasePath -> PathType -> Bool -> String -> IO ExitCode
 runUpTo sep mDir pt ic part = do
     dir <- case mDir of
-        Just dir -> return dir
-        Nothing -> fixupPath =<< getWorkingDir
+        GivenPath dir -> return dir
+        CurrPath -> fixupPath =<< getWorkingDir
     case upTo ic dir part of
         Nothing ->
-            return UpTo_BadDestination
+            return Program_UpTo_BadDestination
         Just relPath -> do
             putStr . useSeparator sep =<< case pt of
                 RelativePath -> return relPath
                 AbsolutePath -> fixupPath $ dir </> relPath
             return Program_Success
-
-
-runOpt :: Maybe Separator -> UpOption -> IO ExitCode
-runOpt mSep opt = case opt of
-    Help -> runHelp
-    UpBy mDir pt n -> runUpBy sep mDir pt n
-    UpTo mDir pt ic str -> runUpTo sep mDir pt ic str
-    where
-        sep = maybe defaultSep id mSep
-        defaultSep = case pathSeparator of
-            '\\' -> BackSlash
-            '/' -> ForwardSlash
-            _ -> ForwardSlash
 
 
 mkPath :: String -> [String] -> FilePath
