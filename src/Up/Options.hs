@@ -76,9 +76,10 @@ incActionCount :: State UpOptions ()
 incActionCount = modify $ \st -> st { optionActionCount = optionActionCount st + 1 }
 
 
-options :: Options (State UpOptions) ()
+options :: Options (State UpOptions) () ()
 options = do
-    addOption (kw ["--help", "-h"] `text` "Display this help message.") $ \(HelpDescription desc) -> do
+    addOption (kw ["--help", "-h"] `text` "Display this help message.") $ do
+        let desc = getHelpDescription options
         modify $ \st -> st { optionHelp = Just $ usage desc }
     addOption (kw ["--relative", "-r"] `text` "Emit the path as a relative path.") $ do
         modify $ \st -> st { optionPathType = Just RelativePath }
@@ -114,7 +115,7 @@ usage helpDesc = intercalate "\n" [
     fit "The following flags do not need to be explicitly written and can be implied: --by, --to. If AMOUNT is supplied, --by is chosen. In all other cases, --to is chosen." ]
     where
         line = replicate 80 '-'
-        fit = fitToOptions options
+        fit = format defaultFormatConfig
 
 
 --------------------------------------------------------------------------------
@@ -133,19 +134,28 @@ initialState sep = UpOptions {
 
 
 parseOptions :: Separator -> [String] -> Either String UpOptions
-parseOptions sep args = case runOptions options args of
-    Left (ParseFailed msg _ _) -> Left $ msg ++ "\n" ++ help
-    Right m -> case execState m $ initialState sep of
-        st -> case optionHelp st of
-            Just _ -> Right st
-            Nothing -> case optionActionCount st of
-                1 -> Right st
-                0 -> Left help
-                _ -> Left $ "Please only supply one mode at a time.\n" ++ help
+parseOptions sep args = case parseOptions' sep args of
+    Left msg -> Left msg
+    Right [opts] -> Right opts
+    Right _ -> Left helpDesc
+
+
+parseOptions' :: Separator -> [String] -> Either String [UpOptions]
+parseOptions' sep args = case runOptions options args of
+    Left (ParseFailed msg _ _) -> Left $ msg ++ "\n" ++ helpDesc
+    Right actions -> mapM runAction actions
     where
-        help = usage $ getHelpDescription options
+        runAction action = case execState action $ initialState sep of
+            st -> case optionHelp st of
+                Just _ -> Right st
+                Nothing -> case optionActionCount st of
+                    1 -> Right st
+                    0 -> Left helpDesc
+                    _ -> Left $ "Please only supply one mode at a time.\n" ++ helpDesc
 
 
+helpDesc :: String
+helpDesc = usage $ getHelpDescription options
 
 
 
