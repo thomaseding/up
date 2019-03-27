@@ -6,11 +6,12 @@ import Data.Char (toLower)
 import Data.Function (on)
 import Data.List (intercalate)
 import Data.List.Split (splitOneOf)
+import Prelude hiding (pred)
 import System.Directory (canonicalizePath)
-import System.Environment (getArgs, getEnv, getProgName)
-import System.FilePath (joinDrive, splitDrive, (</>), pathSeparator, dropExtension)
-import Text.PrintOption
+import System.Environment (getArgs, getEnv)
+import System.FilePath ((</>), pathSeparator)
 import Up.Options
+
 import qualified System.Exit
 
 
@@ -139,14 +140,5 @@ upTo' ic targets target = case targets' of
         pred = if ic
             then on (/=) (map toLower) target
             else (/= target)
-
-
-
-
-
-
-
-
-
 
 
