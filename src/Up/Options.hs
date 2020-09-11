@@ -20,17 +20,19 @@ import Text.LambdaOptions
 
 
 data Separator = ForwardSlash | BackSlash
-    deriving (Typeable)
+    deriving (Show, Typeable)
 
 
 data PathType
     = AbsolutePath
     | RelativePath
+    deriving (Show)
 
 
 data BasePath
     = CurrPath
     | GivenPath FilePath
+    deriving (Show)
 
 
 data UpOptions = UpOptions {
@@ -42,7 +44,7 @@ data UpOptions = UpOptions {
     optionPathType :: Maybe PathType,
     optionIgnoreCase :: Bool,
     optionActionCount :: Int
-} deriving ()
+} deriving (Show)
 
 
 --------------------------------------------------------------------------------
@@ -108,10 +110,27 @@ options = do
         modify $ \st -> st { optionBasePath = GivenPath dir, optionUpTo = Just (AbsolutePath, part) }
         incActionCount
         done
-    addOption (kw ["--to", "-t"] `argText` "PATHPART" `text` "Goes up the current directory until PATHPART is hit. Emits a relative path by default.") $ \dir part -> do
-        modify $ \st -> st { optionBasePath = GivenPath dir, optionUpTo = Just (RelativePath, part) }
-        incActionCount
-        done
+    addOption (kw ["--to", "-t"] `argText` "PATHPART" `text` "Goes up the current directory until PATHPART is hit. Emits a relative path by default.") $
+        toOption
+
+
+byOption :: DotInt -> State UpOptions ()
+byOption n = do
+    modify $ \st -> st { optionBasePath = CurrPath, optionUpBy = Just (RelativePath, unDotInt n) }
+    incActionCount
+
+toOption :: FilePath -> State UpOptions ()
+toOption part = do
+    modify $ \st -> st { optionBasePath = CurrPath, optionUpTo = Just (RelativePath, part) }
+    incActionCount
+
+
+optionsWithImplicitFlags :: Options (State UpOptions ())
+optionsWithImplicitFlags = do
+    -- NOTE: Ordering matters
+    options
+    addOption (kw ()) $ toOption
+    addOption (kw ()) $ byOption
 
 
 helpDesc :: String
@@ -156,7 +175,7 @@ parseOptions sep args = case parseOptions' sep args of
 
 
 parseOptions' :: Separator -> [String] -> Either String [UpOptions]
-parseOptions' sep args = case runOptions options args of
+parseOptions' sep args = case runOptions optionsWithImplicitFlags args of
     Left err -> Left $ (prettyOptionsError err) ++ "\n" ++ usage
     Right actions -> mapM runAction actions
     where
