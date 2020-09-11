@@ -78,7 +78,7 @@ incActionCount :: State UpOptions ()
 incActionCount = modify $ \st -> st { optionActionCount = optionActionCount st + 1 }
 
 
-options :: Options (State UpOptions ()) ()
+options :: Options (State UpOptions ())
 options = do
     let done = return () :: State UpOptions ()
     addOption (kw ["--help", "-h"] `text` "Display this help message.") $ do
@@ -157,7 +157,7 @@ parseOptions sep args = case parseOptions' sep args of
 
 parseOptions' :: Separator -> [String] -> Either String [UpOptions]
 parseOptions' sep args = case runOptions options args of
-    Left (ParseFailed msg _ _) -> Left $ msg ++ "\n" ++ usage
+    Left err -> Left $ (prettyOptionsError err) ++ "\n" ++ usage
     Right actions -> mapM runAction actions
     where
         runAction action = case execState action $ initialState sep of
